@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#111827"
+    >
+
+    <meta
+        name="description"
+        content="CBN TimeShift - rádio com buffer automático"
+    >
+
+    <link
+        rel="manifest"
+        href="./manifest.webmanifest"
+    >
+
+    <title>CBN TimeShift</title>
+
+    <!-- BIBLIOTECA HLS.JS (Necessária para tocar o formato .m3u8 no Chrome/Edge) -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #111827;
+            color: #ffffff;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 520px;
+            background: #1f2937;
+            border-radius: 18px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            margin-top: 5px;
+            margin-bottom: 25px;
+            color: #9ca3af;
+            font-size: 15px;
+        }
+
+        .card {
+            background: #111827;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 15px;
+        }
+
+        .label {
+            color: #9ca3af;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+
+        .value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #6b7280;
+        }
+
+        .indicator.online {
+            background: #22c55e;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.7);
+        }
+
+        .indicator.offline {
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+        }
+
+        .buffer-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .buffer-bar {
+            width: 100%;
+            height: 14px;
+            background: #374151;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .buffer-progress {
+            width: 0%;
+            height: 100%;
+            background: #22c55e;
+            transition: width 0.5s ease;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            border: none;
+            border-radius: 10px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #btnPlay {
+            background: #22c55e;
+            color: #052e16;
+        }
+
+        #btnStop {
+            background: #374151;
+            color: #ffffff;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .range-container {
+            margin-top: 20px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            background: #111827;
+            color: #d1d5db;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .warning {
+            color: #fbbf24;
+        }
+
+        .success {
+            color: #86efac;
+        }
+
+        .error {
+            color: #fca5a5;
+        }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="container">
+
+        <h1>📻 CBN TimeShift</h1>
+
+        <div class="subtitle">
+            Rádio CBN com buffer automático
+        </div>
+
+        <!-- STATUS DA INTERNET -->
+        <div class="card">
+            <div class="status">
+                <div id="internetIndicator" class="indicator"></div>
+                <strong id="internetStatus">Verificando internet...</strong>
+            </div>
+        </div>
+
+        <!-- RÁDIO -->
+        <div class="card">
+            <div class="label">Rádio</div>
+            <div class="value">CBN São Paulo</div>
+        </div>
+
+        <!-- BUFFER -->
+        <div class="card">
+            <div class="buffer-info">
+                <span>Buffer disponível</span>
+                <strong><span id="bufferTime">0:00</span></strong>
+            </div>
+            <div class="buffer-bar">
+                <div id="bufferProgress" class="buffer-progress"></div>
+            </div>
+        </div>
+
+        <!-- CONFIGURAÇÃO -->
+        <div class="card">
+            <div class="label">Tamanho máximo do buffer</div>
+            <div class="value">
+                <span id="bufferMinutes">30</span> minutos
+            </div>
+            <div class="range-container">
+                <input id="bufferRange" type="range" min="5" max="60" step="5" value="30">
+            </div>
+        </div>
+
+        <!-- PLAYER -->
+        <audio id="audio" controls preload="none" style="width: 100%;"></audio>
+
+        <!-- BOTÕES -->
+        <div class="controls">
+            <button id="btnPlay" type="button">▶ Iniciar</button>
+            <button id="btnStop" type="button">■ Parar</button>
+        </div>
+
+        <!-- MENSAGEM -->
+        <div id="message" class="message">
+            Pronto para iniciar a CBN.
+        </div>
+
+        <div class="footer">
+            CBN TimeShift
+        </div>
+
+    </main>
+
+    <!-- JavaScript principal -->
+    <script src="./app.js"></script>
+
+    <!-- Service Worker -->
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+                navigator.serviceWorker
+                    .register("./sw.js")
+                    .then(function (registration) {
+                        console.log("[CBN] Service Worker registrado:", registration.scope);
+                    })
+                    .catch(function (error) {
+                        console.error("[CBN] Erro ao registrar Service Worker:", error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
