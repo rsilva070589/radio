@@ -34,8 +34,7 @@
    CONFIGURAÇÃO
    ============================================================ */
 
-const STREAM_URL =
-    "http://stream.sgr.globo.com/hls/aCBNSP/aCBNSP.m3u8";
+const STREAM_URL = "/hls/aCBNSP/aCBNSP.m3u8";
 
 
 /*
